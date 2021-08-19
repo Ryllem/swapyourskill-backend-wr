@@ -13,8 +13,6 @@ router.get("/", function (req, res, next) {
 /* CREATION DU RDV */
 router.post("/createappointment", async function (req, res, next) {
   let { receiverId, senderId, skillId, appointmentDate } = req.body;
-  // console.log(content)
-
   let appointmentToSave = new appointmentModel({
     appointmentDate,
     senderId,
@@ -35,13 +33,12 @@ router.post("/createappointment", async function (req, res, next) {
   }
 });
 
+/** Recevoir la liste des rendez-vous */
 router.post("/getappointment", async function (req, res, next) {
-  console.log("ROUTE APPPOIINTEMENT")
   const user = await userModel.findOne({ token: req.body.token });
   if (user !== null) {
   const appointmentBdd = await appointmentModel.find({
     $or: [{ receiverId: user._id }, { senderId: user._id }],
-    //skillId: req.body.skillId,
   })
   .populate("senderId", { username: 1 })
   .populate("receiverId", { username: 1 })
@@ -50,8 +47,6 @@ router.post("/getappointment", async function (req, res, next) {
 } else {
   res.json({ result: false, message: "not OK" })
 }
-  
 });
-
 
 module.exports = router;

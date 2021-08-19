@@ -4,9 +4,8 @@ let uid2 = require("uid2");
 let bcrypt = require("bcrypt");
 
 const userModel = require("../models/usermodel");
-// const skillsModel = require('../Models/skill')
 
-const cost = 10;
+const cost = 10; //Bcrypt cost
 
 
 // GET users listing. 
@@ -15,17 +14,13 @@ router.get("/", function (req, res, next) {
 });
 
 /* SIGNUP */
-
 router.post("/signup", async function (req, res, next) {
-  //let token = await uid(32)
-  console.log(req.body);
   const hash =
-    req.body.password.length > 2
+    req.body.password.length >= 8
       ? bcrypt.hashSync(req.body.password, cost)
       : req.body.password;
-  console.log("password:", req.body.password);
-  console.log("hash:", hash);
-  let errorMessage = {};
+      
+  let errorMessage = {}; // Initialisation objet en cad d'erreur
   try {
     let userToSave = new userModel({
       username: req.body.username,
@@ -36,31 +31,32 @@ router.post("/signup", async function (req, res, next) {
       wishList: [],
     });
     const userBdd = await userToSave.save();
-    res.json({ status: true, message: userBdd });
+    res.json({ status: true, message: userBdd }); // requete OK
   } catch (error) {
-    console.log(error);
-    if (error.code === 11000) {
+    if (error.code === 11000) { // error pour unique email
       errorMessage = {
         email: `cette email '${error.keyValue.email}' est déjà utilisé`,
       };
     } else {
       errorMessage = Object.fromEntries(
-        Object.entries(error.errors).map(([key, val]) => [key, val.message])
+        Object.entries(error.errors).map(([key, val]) => [key, val.message]) // extraction de chaque erreur
       );
     }
+    if (req.body.test === true) { // Only for test (password brypt)
+      res.json({ status: false, message: errorMessage, hash: hash });
+    } else {
     res.json({ status: false, message: errorMessage });
+    }
   }
 });
 
 /* LOGIN */
-
 router.post("/signin", async function (req, res, next) {
-  const user = await userModel.findOne({ email: req.body.email.toLowerCase() }).populate({path:"wishList", populate: {path: 'teacher', select: { username: 1 } }});;
-  // console.log("EMAIL: ", req.body.email)
-  // console.log("PASSWORD: ", req.body.password)
-  // console.log("USER ", user)
+  const user = await userModel.findOne({ 
+    email: req.body.email.toLowerCase() 
+  }).populate({path:"wishList", populate: {path: 'teacher', select: { username: 1 } }});; // clé étrangère
   if (user) {
-    if (bcrypt.compareSync(req.body.password, user.password)) {
+    if (bcrypt.compareSync(req.body.password, user.password)) { // Vérification du password chiffré avec Bcrypt
       user.token = uid2(32);
       let userWithNewToken = await user.save();
       userWithNewToken.password = "";
@@ -82,7 +78,7 @@ router.post("/loaduser", async function (req, res, next) {
   const user = await userModel.findOne({ token: req.body.token }).populate({path:"wishList", populate: {path: 'teacher', select: { username: 1 } }});
   if (user) {
       user.password = null;
-      console.log('authentification réussi, user connecté: \u001b[1;32m ', user.username)
+      // console.log('authentification réussi, user connecté: \u001b[1;32m ', user.username)
       res.json({ status: true, message: user });
     } else {
       console.log('authentification échec, user non connecté: \u001b[1;32m ')
@@ -109,31 +105,12 @@ router.post("/logout", async function (req, res, next) {
     }
 });
 
-/* DASHBOARD */
-
-router.post("/dashboard", async function (req, res, next) {
-
-  console.log(req.query.token);
-  const mySkill = await userModel.findOne({ email: req.body.email.toLowerCase() });
-  
-
-  /* /* Return
-  true / false,
-    rdv,
-    mess, //( user)
-    res.send("respond with a resource"); */
-});
-
-
-
-
 /* WISHLIST */
 
 router.post("/addToWishlist", async function(req, res, next) {
-  console.log("Arriveé sur route addToWishlist", req.body)
+  
   if (req.body.token === undefined) res.json({ status: false, message: "Aucun token trouvé" });
   const user = await userModel.findOne({ token: req.body.token }, );
-  console.log(user)
   const wishlist = await userModel.updateOne(
     { 
       _id: user._id
@@ -161,7 +138,6 @@ router.post("/removeToWishlist", async function(req, res, next) {
     $pull: {wishList: req.body.skillId}
     });
 
-  /* Return */
   res.json({ result: true, message: `retiré de la wishlist le skill ${req.body.skillId}` });
 });
 

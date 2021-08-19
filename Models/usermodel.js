@@ -16,7 +16,7 @@ let userSchema = mongoose.Schema({
     password: {
         type: String,
         required: [true, "Tu as oublié de mettre ton mot de passe"],
-        minLength: [4, "Mets un mot de passe plus long"],
+        minLength: [8, "Mets un mot de passe plus long"],
     },
     avatar: { type: String, required: [true, "Tu as oublié de sélectionner un avatar "]},
     wishList: [{ type: mongoose.Schema.Types.ObjectId, ref: "skills" }],

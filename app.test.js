@@ -1,26 +1,15 @@
-/* Pour lancer les tests il faut aller dans le fichier app.js et commenter
-   la 1ere ligne 'require("./models/connexion")'
-   Petit bugs avec la déconnection mongoDb
-*/
-
 var app = require("./app.js")
 var request = require("supertest")
 var mongoose = require('mongoose');
-let uid2 = require("uid2");
-let bcrypt = require("bcrypt");
-const { process } = require("uniqid");
-require("dotenv").config()
-
-console.log("Test de la variable")
-console.log(process.env.MONGO_PASS)
 
 beforeAll(() => {
+  
   var options = {
     connectTimeoutMS: 5000,
     useNewUrlParser: true,
     useUnifiedTopology : true
    }
-   mongoose.connect('mongodb+srv://swapadmin:GyXzx0NLI9w0UAzB@cluster0.pjzxn.mongodb.net/sysdatabase?retryWrites=true&w=majority', 
+   mongoose.connect(process.env.MONGO_PASS, 
       options,         
       function(err) {
        console.log(err || "MongoDb connecté");
@@ -140,6 +129,45 @@ describe('TEST for route users', () => {
             )})
       })
 
+      test("POST users/Signup with empty email ", async () => {
+        await request(app).post("/users/signup")
+          .send({ "email": "", password: "12gfhfghd", username: "bob", avatar:"www.google.fr" })
+          .then(
+            response => {
+              //console.log('response:', response.body)
+              expect(response.body).toEqual(
+                      expect.objectContaining({
+                        status: false, 
+                        message: expect.objectContaining({email: expect.any(String)}) 
+                      })
+              )})
+        })
 
+        test("POST users/Signup with no password ou password too short ", async () => {
+          await request(app).post("/users/signup")
+            .send({ "email": "mika@google.com", password: "123", username: "bob", avatar:"www.google.fr" })
+            .then(
+              response => {
+                // console.log('response:', response.body)
+                expect(response.body).toEqual(
+                        expect.objectContaining({
+                          status: false, 
+                          message: expect.objectContaining({password: expect.any(String)}) 
+                        })
+                )})
+          })
 
+          test("POST users/Signup password hash with Bcrypt ", async () => {
+            await request(app).post("/users/signup")
+              .send({ "email": "", password: "12345678", username: "", avatar:"www.google.fr", test: true })
+              .then(
+                response => {
+                  expect(response.body.hash.length).toBeGreaterThan(50)
+                  expect(response.body).toEqual(
+                          expect.objectContaining({
+                            
+                            hash: expect.any(String)
+                          })
+                  )})
+            })
 })

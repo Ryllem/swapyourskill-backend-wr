@@ -3,7 +3,6 @@ var router = express.Router();
 
 let mongoose = require("mongoose");
 let messageModel = require("../models/messagemodel");
-const { updateOne } = require("../models/usermodel");
 const userModel = require("../models/usermodel");
 
 /* GET home page. */
@@ -14,7 +13,6 @@ router.get("/", function (req, res, next) {
 /* CREATION DU MESSAGE */
 router.post("/createmessage", async function (req, res, next) {
   let { receiverId, senderId, skillId, content } = req.body;
-  // console.log(content)
 
   let messageToSave = new messageModel({
     content,
@@ -35,12 +33,10 @@ router.post("/createmessage", async function (req, res, next) {
       message: "Echec lors de la création du message",
     });
 
-    // Prensez à gerer les messages incorrect;
   }
 });
 
-// modif des messages de validation
-
+// Suppression de RDV sur message
 router.post("/update", async function (req, res, next) {
   let updatedMess = await messageModel.updateOne(
     { _id: req.body._id },
@@ -58,7 +54,7 @@ router.post("/update", async function (req, res, next) {
     });
   }
 });
-
+// ECRAN DASHBORD MESSAGE
 router.post("/readmessage", async function (req, res, next) {
   // message pour ecran dashboard
   const user = await userModel.findOne({ token: req.body.token });
@@ -67,10 +63,11 @@ router.post("/readmessage", async function (req, res, next) {
   aggregate.match({
     $or: [{ receiverId: ObjectId(user._id) }, { senderId: ObjectId(user._id) }],
   });
+  
   aggregate.group({ _id: "$skillId", nbr: { $sum: 1 } });
 
-  var data = await aggregate.exec();
-  // console.log("data:", data.length);
+  var data = await aggregate.exec(); // selectionne tous les message du user et les groupe par skillId
+  console.log("data:", data);
   let reqToSend = [];
   let myMessageUnread = [];
   let totalUnreadMessage = 0;
@@ -95,7 +92,7 @@ router.post("/readmessage", async function (req, res, next) {
         skillId: element._id,
         readed: { $ne: user._id.toString() },
       })
-      .count()
+      .countDocuments()
       .sort({ created_at: 1 });
     myMessageUnread.push(messageUnread);
     totalUnreadMessage += messageUnread;
@@ -111,18 +108,21 @@ router.post("/readmessage", async function (req, res, next) {
 
 /* RECUPERATION D'UNE CONVERSATION */
 router.post("/conversation", async function (req, res, next) {
-  let { userId, skillId } = req.body;
-  // console.log("req.body", req.body)
+  let { userId, skillId, senderId, receiverId } = req.body;
 
   let conversation = await messageModel
     .find({
-      $or: [{ receiverId: userId }, { senderId: userId }],
-      skillId: skillId,
-    })
+      '$or': [
+        {receiverId: receiverId, senderId: senderId },
+        {receiverId: senderId, senderId: receiverId }
+      ],
+      skillId: skillId
+    }) 
     .sort({ created_at: 1 });
-
+    
   res.json({ result: true, message: conversation });
 });
+
 
 /* PASSAGE DES MESSAGE EN LU */
 router.post("/readed", async function (req, res, next) {
